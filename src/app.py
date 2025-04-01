@@ -108,3 +108,11 @@ def stitch_images(train_image, query_image):
         return None
 
     (matches, Homography_Matrix, status) = M
+
+    # Warping and stitching
+    width = query_photo.shape[1] + train_photo.shape[1]
+    height = max(query_photo.shape[0], train_photo.shape[0])
+    result = cv2.warpPerspective(train_photo, Homography_Matrix, (width, height))
+    result[0:query_photo.shape[0], 0:query_photo.shape[1]] = query_photo
+
+    return result
