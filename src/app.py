@@ -1,4 +1,6 @@
 from PIL import Image
+import streamlit as st
+import os
 import cv2
 import numpy as np
 import imageio
@@ -51,7 +53,7 @@ def stitch_images(train_image, query_image):
     # train_image = standardize_image(train_image)
     # query_image = standardize_image(query_image)
 
-    # Convert images to RGB (OpenCV loads images in BGR by default)
+    # Convert images to RGB
     train_photo = cv2.cvtColor(train_image, cv2.COLOR_BGR2RGB)
     train_photo_gray = cv2.cvtColor(train_photo, cv2.COLOR_RGB2GRAY)
 
@@ -88,7 +90,7 @@ def stitch_images(train_image, query_image):
         rawMatches = sorted(best_matches, key=lambda x: x.distance)
         return rawMatches
 
-    matches = key_points_matching(features_train_img, features_query_img, method='sift')
+    matches = key_points_matching(features_train_img, features_query_img,method='sift')
 
     
     # Homography stitching
@@ -115,4 +117,51 @@ def stitch_images(train_image, query_image):
     result = cv2.warpPerspective(train_photo, Homography_Matrix, (width, height))
     result[0:query_photo.shape[0], 0:query_photo.shape[1]] = query_photo
 
-    return result
+    return result
+
+# Streamlit app
+st.title("Image Stitching App")
+st.write("Upload multiple images to stitch them together.")
+
+# File uploaders
+uploaded_files = st.file_uploader("Upload images (Train Image and Query Images)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+
+if uploaded_files:
+    # Read images
+    images = [cv2.imdecode(np.frombuffer(uploaded_file.read(), np.uint8), cv2.IMREAD_COLOR) for uploaded_file in uploaded_files]
+
+    # Check if images are loaded correctly
+    if any(image is None for image in images):
+        st.error("Error loading one or more images. Please check the files.")
+    else:
+        # Display uploaded images
+        st.subheader("Uploaded Images")
+        cols = st.columns(len(images))
+        for col, img in zip(cols, images):
+            col.image(img, use_container_width=True)
+
+        # Stitch images iteratively
+        st.subheader("Stitched Image")
+        with st.spinner("Stitching images..."):
+            stitched_image = images[0]  # Start with the first image
+            for i in range(1, len(images)):
+                stitched_image = stitch_images(stitched_image, images[i])
+                if stitched_image is None:
+                    st.error("Error stitching images. Please ensure the images overlap sufficiently.")
+                    break
+
+        if stitched_image is not None:
+            # Convert result to PIL image for display
+            result_image = Image.fromarray(cv2.cvtColor(stitched_image, cv2.COLOR_BGR2RGB))
+            st.image(result_image, caption="Stitched Image", use_container_width=True)
+
+            # Download button for the stitched image
+            result_path = "stitched_image.jpg"
+            imageio.imwrite(result_path, stitched_image)
+            with open(result_path, "rb") as file:
+                st.download_button(
+                    label="Download Stitched Image",
+                    data=file,
+                    file_name=result_path,
+                    mime="image/jpeg"
+                )
