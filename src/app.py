@@ -74,6 +74,22 @@ def stitch_images(train_image, query_image):
     keypoints_train_img, features_train_img = select_descriptor_methods(train_photo_gray, method='sift')
     keypoints_query_img, features_query_img = select_descriptor_methods(query_photo_gray, method='sift')
 
+    # Feature matching
+    def create_matching_object(method, crossCheck):
+        if method == 'sift' or method == 'surf':
+            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=crossCheck)
+        elif method == 'orb' or method == 'brisk':
+            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=crossCheck)
+        return bf
+
+    def key_points_matching(features_train_img, features_query_img, method):
+        bf = create_matching_object(method, crossCheck=True)
+        best_matches = bf.match(features_train_img, features_query_img)
+        rawMatches = sorted(best_matches, key=lambda x: x.distance)
+        return rawMatches
+
+    matches = key_points_matching(features_train_img, features_query_img, method='sift')
+
     
     # Homography stitching
     def homography_stitching(keypoints_train_img, keypoints_query_img, matches, reprojThresh):
