@@ -73,3 +73,22 @@ def stitch_images(train_image, query_image):
 
     keypoints_train_img, features_train_img = select_descriptor_methods(train_photo_gray, method='sift')
     keypoints_query_img, features_query_img = select_descriptor_methods(query_photo_gray, method='sift')
+
+    
+    # Homography stitching
+    def homography_stitching(keypoints_train_img, keypoints_query_img, matches, reprojThresh):
+        keypoints_train_img = np.float32([keypoint.pt for keypoint in keypoints_train_img])
+        keypoints_query_img = np.float32([keypoint.pt for keypoint in keypoints_query_img])
+        if len(matches) > 4:
+            points_train = np.float32([keypoints_train_img[m.queryIdx] for m in matches])
+            points_query = np.float32([keypoints_query_img[m.trainIdx] for m in matches])
+            (H, status) = cv2.findHomography(points_train, points_query, cv2.RANSAC, reprojThresh)
+            return (matches, H, status)
+        else:
+            return None
+
+    M = homography_stitching(keypoints_train_img, keypoints_query_img, matches, reprojThresh=4)
+    if M is None:
+        return None
+
+    (matches, Homography_Matrix, status) = M
