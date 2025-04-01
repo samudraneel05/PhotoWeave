@@ -1,6 +1,3 @@
-# PhotoWeave
-
-
 Given a pair of images I want to stitch them to create a panoramic scene. 
 
 Note, one fundamental requirement is that both images need to share some common regions.
