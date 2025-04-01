@@ -138,3 +138,15 @@ Even though SIFT works well it performs intensive operations which are time cons
 ORB
 
 ORB is an efficient open source alternative to SIFT and SURF. Even though it computes less key points when compared to SIFT and SURF yet they are effective. It uses FAST and BRIEF techniques to detect the key points and compute the image descriptors respectively.
+
+Making sense of the Keypoints array returned from above function
+
+![Imgur](https://imgur.com/XT7FTPV.png)
+
+Apart from octave and class_id parameters, which have integer values, the other arguments have float values.
+
+Read further [here](https://docs.opencv.org/3.4/d2/d29/classcv_1_1KeyPoint.html)
+
+#### Lets check what keypoint consist of
+
+---
