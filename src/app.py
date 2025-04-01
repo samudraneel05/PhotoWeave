@@ -13,39 +13,42 @@ warnings.filterwarnings('ignore')
 TARGET_WIDTH = 1280
 TARGET_HEIGHT = 720
 
-# Function to standardize images to 16:9 aspect ratio
-def standardize_image(image):
-    """Resize the image to the target dimensions (16:9 aspect ratio)."""
+def standardize_image(image: np.ndarray, target_width: int = TARGET_WIDTH, target_height: int = TARGET_HEIGHT) -> np.ndarray:
+    """
+    Resizes an image to fit within a 16:9 aspect ratio while maintaining its original aspect ratio.
+    Pads the image with black borders if necessary to match the exact target dimensions.
+
+    Parameters:
+    - image (np.ndarray): Input image as a NumPy array.
+    - target_width (int): Target width of the standardized image (default: 1920).
+    - target_height (int): Target height of the standardized image (default: 1080).
+
+    Returns:
+    - np.ndarray: The standardized image with the target aspect ratio.
+    """
     # Get original dimensions
     h, w = image.shape[:2]
     
-    # Calculate the aspect ratio
-    aspect_ratio = w / h
+    # Compute the new dimensions while preserving the aspect ratio
+    scale_factor = min(target_width / w, target_height / h)
+    new_width = int(w * scale_factor)
+    new_height = int(h * scale_factor)
     
-    # Resize while maintaining aspect ratio
-    if aspect_ratio > (TARGET_WIDTH / TARGET_HEIGHT):
-        # Wider than 16:9
-        new_width = TARGET_WIDTH
-        new_height = int(TARGET_WIDTH / aspect_ratio)
-    else:
-        # Taller than 16:9
-        new_height = TARGET_HEIGHT
-        new_width = int(TARGET_HEIGHT * aspect_ratio)
+    # Resize the image while maintaining aspect ratio
+    resized_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
-    # Resize the image
-    resized_image = cv2.resize(image, (new_width, new_height))
+    # Create a blank canvas with the target dimensions
+    standardized_image = np.zeros((target_height, target_width, 3), dtype=np.uint8)
 
-    # Create a new image with the target dimensions and fill it with black
-    standardized_image = np.zeros((TARGET_HEIGHT, TARGET_WIDTH, 3), dtype=np.uint8)
-    
-    # Calculate the position to place the resized image
-    y_offset = (TARGET_HEIGHT - new_height) // 2
-    x_offset = (TARGET_WIDTH - new_width) // 2
-    
-    # Place the resized image in the center of the standardized image
+    # Compute centering offsets
+    y_offset = (target_height - new_height) // 2
+    x_offset = (target_width - new_width) // 2
+
+    # Paste the resized image onto the center of the canvas
     standardized_image[y_offset:y_offset + new_height, x_offset:x_offset + new_width] = resized_image
 
     return standardized_image
+
 
 # Image stitching function
 def stitch_images(train_image, query_image):
