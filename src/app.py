@@ -14,18 +14,7 @@ TARGET_WIDTH = 1280
 TARGET_HEIGHT = 720
 
 def standardize_image(image: np.ndarray, target_width: int = TARGET_WIDTH, target_height: int = TARGET_HEIGHT) -> np.ndarray:
-    """
-    Resizes an image to fit within a 16:9 aspect ratio while maintaining its original aspect ratio.
-    Pads the image with black borders if necessary to match the exact target dimensions.
-
-    Parameters:
-    - image (np.ndarray): Input image as a NumPy array.
-    - target_width (int): Target width of the standardized image (default: 1920).
-    - target_height (int): Target height of the standardized image (default: 1080).
-
-    Returns:
-    - np.ndarray: The standardized image with the target aspect ratio.
-    """
+   
     # Get original dimensions
     h, w = image.shape[:2]
     
