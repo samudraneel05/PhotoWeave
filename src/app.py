@@ -4,6 +4,7 @@ import os
 import cv2
 import numpy as np
 import imageio
+import io
 
 cv2.ocl.setUseOpenCL(False)
 import warnings
@@ -106,8 +107,8 @@ def stitch_images(train_image, query_image):
     # Warping and stitching
     width = query_photo.shape[1] + train_photo.shape[1]
     height = max(query_photo.shape[0], train_photo.shape[0])
-    result = cv2.warpPerspective(train_photo, Homography_Matrix, (width, height))
-    result[0:query_photo.shape[0], 0:query_photo.shape[1]] = query_photo
+    result = cv2.warpPerspective(train_image, Homography_Matrix, (width, height))
+    result[0:query_image.shape[0], 0:query_image.shape[1]] = query_image
 
     return result
 
@@ -130,7 +131,9 @@ if uploaded_files:
         st.subheader("Uploaded Images")
         cols = st.columns(len(images))
         for col, img in zip(cols, images):
-            col.image(img, use_container_width=True)
+            # Convert BGR to RGB for display
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            col.image(img_rgb, use_container_width=True)
 
         # Stitch images iteratively
         st.subheader("Stitched Image")
@@ -143,17 +146,27 @@ if uploaded_files:
                     break
 
         if stitched_image is not None:
-            # Convert result to PIL image for display
-            result_image = Image.fromarray(cv2.cvtColor(stitched_image, cv2.COLOR_BGR2RGB))
+            # Convert result to RGB before saving
+            stitched_image_rgb = cv2.cvtColor(stitched_image, cv2.COLOR_BGR2RGB)
+            
+            # Create PIL image for display
+            result_image = Image.fromarray(stitched_image_rgb)
             st.image(result_image, caption="Stitched Image", use_container_width=True)
 
-            # Download button for the stitched image
+            # Save the image with proper color handling
             result_path = "stitched_image.jpg"
-            imageio.imwrite(result_path, stitched_image)
-            with open(result_path, "rb") as file:
+            cv2.imwrite(result_path, stitched_image)  # Save in BGR format that OpenCV uses
+            
+            # Read back in RGB format for download
+            with Image.open(result_path) as img:
+                img_rgb = img.convert('RGB')
+                img_byte_arr = io.BytesIO()
+                img_rgb.save(img_byte_arr, format='JPEG')
+                img_byte_arr = img_byte_arr.getvalue()
+                
                 st.download_button(
                     label="Download Stitched Image",
-                    data=file,
-                    file_name=result_path,
+                    data=img_byte_arr,
+                    file_name="stitched_image.jpg",
                     mime="image/jpeg"
                 )
