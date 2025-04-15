@@ -1,6 +1,5 @@
 from PIL import Image
 import streamlit as st
-import os
 import cv2
 import numpy as np
 import imageio
@@ -41,103 +40,75 @@ def standardize_image(image: np.ndarray, target_width: int = TARGET_WIDTH, targe
 
 
 # Image stitching function
-def stitch_images(train_image, query_image):
-    # Normalize images
-    # train_image = standardize_image(train_image)
-    # query_image = standardize_image(query_image)
-
-    # Keep images in BGR format for OpenCV operations
-    train_photo = train_image.copy()
-    query_photo = query_image.copy()
-
-    # Convert images to RGB
-    train_photo_rgb = cv2.cvtColor(train_photo, cv2.COLOR_BGR2RGB)
-    train_photo_gray = cv2.cvtColor(train_photo_rgb, cv2.COLOR_RGB2GRAY)
-
-    query_photo_rgb = cv2.cvtColor(query_photo, cv2.COLOR_BGR2RGB)
-    query_photo_gray = cv2.cvtColor(query_photo_rgb, cv2.COLOR_RGB2GRAY)
-
-    # Feature extraction
-    def select_descriptor_methods(image, method='sift'):
-        if method == 'sift':
-            descriptor = cv2.SIFT_create()
-        elif method == 'surf':
-            descriptor = cv2.SURF_create()
-        elif method == 'brisk':
-            descriptor = cv2.BRISK_create()
-        elif method == 'orb':
-            descriptor = cv2.ORB_create()
-        (keypoints, features) = descriptor.detectAndCompute(image, None)
-        return (keypoints, features)
-
-    keypoints_train_img, features_train_img = select_descriptor_methods(train_photo_gray, method='sift')
-    keypoints_query_img, features_query_img = select_descriptor_methods(query_photo_gray, method='sift')
-
-    # Feature matching
-    def create_matching_object(method, crossCheck):
-        if method == 'sift' or method == 'surf':
-            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=crossCheck)
-        elif method == 'orb' or method == 'brisk':
-            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=crossCheck)
-        return bf
-
-    def key_points_matching(features_train_img, features_query_img, method):
-        bf = create_matching_object(method, crossCheck=True)
-        best_matches = bf.match(features_train_img, features_query_img)
-        rawMatches = sorted(best_matches, key=lambda x: x.distance)
-        return rawMatches
-
-    matches = key_points_matching(features_train_img, features_query_img,method='sift')
-
+def stitch_images(images, crop=True):
+    """
+    Stitch multiple images together using OpenCV's built-in stitching functionality
     
-    # Homography stitching
-    def homography_stitching(keypoints_train_img, keypoints_query_img, matches, reprojThresh):
-        keypoints_train_img = np.float32([keypoint.pt for keypoint in keypoints_train_img])
-        keypoints_query_img = np.float32([keypoint.pt for keypoint in keypoints_query_img])
-        if len(matches) > 4:
-            points_train = np.float32([keypoints_train_img[m.queryIdx] for m in matches])
-            points_query = np.float32([keypoints_query_img[m.trainIdx] for m in matches])
-            (H, status) = cv2.findHomography(points_train, points_query, cv2.RANSAC, reprojThresh)
-            return (matches, H, status)
+    Args:
+        images: List of images to stitch
+        crop: Whether to perform advanced cropping to remove black borders
+        
+    Returns:
+        stitched_image: The final stitched panorama
+    """
+    # Initialize OpenCV's stitcher
+    stitcher = cv2.Stitcher_create()
+    
+    # Convert images to BGR format if they're in RGB
+    bgr_images = []
+    for img in images:
+        if img.shape[2] == 3:  # If it's RGB
+            bgr_images.append(cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
         else:
-            return None
-
-    M = homography_stitching(keypoints_train_img, keypoints_query_img, matches, reprojThresh=4)
-    if M is None:
-        return None
-
-    (matches, Homography_Matrix, status) = M
-
-    # Warping and stitching
-    width = query_photo.shape[1] + train_photo.shape[1]
-    height = max(query_photo.shape[0], train_photo.shape[0])
+            bgr_images.append(img)
+    
+    # Perform stitching
+    status, stitched = stitcher.stitch(bgr_images)
+    
+    if status == cv2.Stitcher_OK:
+        # Convert back to RGB for display
+        stitched = cv2.cvtColor(stitched, cv2.COLOR_BGR2RGB)
         
-    # Warp the train image
-    result = cv2.warpPerspective(train_photo, Homography_Matrix, (width, height))
-    
-    # Add the query image
-    result[0:query_photo.shape[0], 0:query_photo.shape[1]] = query_photo
-    
-    # Remove black borders
-    # Create a 10 pixel border
-    result = cv2.copyMakeBorder(result, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=[0, 0, 0])
-    
-    # Convert to grayscale for thresholding while keeping BGR for output
-    gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)[1]
-    
-    # Find contours and get the largest one
-    contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if contours:
-        largest_contour = max(contours, key=cv2.contourArea)
-        
-        # Get bounding box of the largest contour
-        x, y, w, h = cv2.boundingRect(largest_contour)
-        
-        # Crop the result using the bounding box
-        result = result[y:y+h, x:x+w]
+        if crop:
+            # Create a 10 pixel border surrounding the stitched image
+            stitched = cv2.copyMakeBorder(stitched, 10, 10, 10, 10,
+                                         cv2.BORDER_CONSTANT, (0, 0, 0))
             
-    return result
+            # Convert to grayscale and threshold
+            gray = cv2.cvtColor(stitched, cv2.COLOR_RGB2GRAY)
+            thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)[1]
+            
+            # Find contours and get the largest one
+            contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+                                         cv2.CHAIN_APPROX_SIMPLE)
+            largest_contour = max(contours, key=cv2.contourArea)
+            
+            # Create mask for the largest contour
+            mask = np.zeros(thresh.shape, dtype="uint8")
+            (x, y, w, h) = cv2.boundingRect(largest_contour)
+            cv2.rectangle(mask, (x, y), (x + w, y + h), 255, -1)
+            
+            # Create two copies of the mask
+            minRect = mask.copy()
+            sub = mask.copy()
+            
+            # Erode until we find the minimum rectangular region
+            while cv2.countNonZero(sub) > 0:
+                minRect = cv2.erode(minRect, None)
+                sub = cv2.subtract(minRect, thresh)
+            
+            # Find contours in the minimum rectangular mask
+            contours, _ = cv2.findContours(minRect.copy(), cv2.RETR_EXTERNAL,
+                                         cv2.CHAIN_APPROX_SIMPLE)
+            largest_contour = max(contours, key=cv2.contourArea)
+            (x, y, w, h) = cv2.boundingRect(largest_contour)
+            
+            # Extract the final stitched image
+            stitched = stitched[y:y + h, x:x + w]
+        
+        return stitched
+    else:
+        return None
 
 # Streamlit app
 st.title("Image Stitching App")
@@ -162,38 +133,28 @@ if uploaded_files:
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             col.image(img_rgb, use_container_width=True)
 
-        # Stitch images iteratively
+        # Add crop option in UI
+        crop_option = st.checkbox("Crop black borders", value=True)
+        
+        # Stitch all images at once
         st.subheader("Stitched Image")
         with st.spinner("Stitching images..."):
-            stitched_image = images[0]  # Start with the first image
-            for i in range(1, len(images)):
-                stitched_image = stitch_images(stitched_image, images[i])
-                if stitched_image is None:
-                    st.error("Error stitching images. Please ensure the images overlap sufficiently.")
-                    break
-
-        if stitched_image is not None:
-            # Convert result to RGB before saving
-            stitched_image_rgb = cv2.cvtColor(stitched_image, cv2.COLOR_BGR2RGB)
+            stitched_image = stitch_images(images, crop=crop_option)
             
-            # Create PIL image for display
-            result_image = Image.fromarray(stitched_image_rgb)
-            st.image(result_image, caption="Stitched Image", use_container_width=True)
-
-            # Save the image with proper color handling
-            result_path = "stitched_image.jpg"
-            cv2.imwrite(result_path, stitched_image)  # Save in BGR format that OpenCV uses
-            
-            # Read back in RGB format for download
-            with Image.open(result_path) as img:
-                img_rgb = img.convert('RGB')
-                img_byte_arr = io.BytesIO()
-                img_rgb.save(img_byte_arr, format='JPEG')
-                img_byte_arr = img_byte_arr.getvalue()
+            if stitched_image is None:
+                st.error("Error stitching images. Please ensure the images overlap sufficiently and have enough unique features.")
+            else:
+                # Display the result
+                st.image(stitched_image, caption="Stitched Image", use_container_width=True)
                 
-                st.download_button(
-                    label="Download Stitched Image",
-                    data=img_byte_arr,
-                    file_name="stitched_image.jpg",
-                    mime="image/jpeg"
-                )
+                # Save and provide download
+                result_path = "stitched_image.jpg"
+                cv2.imwrite(result_path, cv2.cvtColor(stitched_image, cv2.COLOR_RGB2BGR))
+                
+                with open(result_path, "rb") as file:
+                    st.download_button(
+                        label="Download Stitched Image",
+                        data=file,
+                        file_name="stitched_image.jpg",
+                        mime="image/jpeg"
+                    )
