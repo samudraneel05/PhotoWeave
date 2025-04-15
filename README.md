@@ -1,20 +1,13 @@
 # PhotoWeave
 
 
-Given a pair of images I want to stitch them to create a panoramic scene. 
-
-Note, one fundamental requirement is that both images need to share some common regions.
-
-Also, the solution need to work even if the pictures have different Scaling or Angle (Perspective) or Spacial position or Capturing devices.
+Image stitching app for two or more images that works even if the pictures have different Scaling or Angle (Perspective) or Spacial position or Capturing devices.
 
 ### What is Image Stitching
 
-A technique of combining several overlapping images from
-the similar viewpoint into a bigger one without thrashing of
-information is known as an image stitching. The most
-universally used methods are the Harris corner detection
-method and the Scale Invariant Feature Transform (SIFT)
-method.
+A technique of combining several overlapping images from the similar viewpoint into a bigger one without thrashing of
+information is known as an image stitching. The most universally used methods are the Harris corner detection
+method and the Scale Invariant Feature Transform (SIFT) method.
 
 
 ### Image Matching 
