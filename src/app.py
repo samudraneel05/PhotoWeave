@@ -111,11 +111,12 @@ def stitch_images(images, crop=True):
         return None
 
 # Streamlit app
-st.title("Image Stitching App")
-st.write("Upload multiple images to stitch them together.")
+st.title("📸 Image Stitching App")
+st.write("Image stitching app for two or more images that works even if the pictures have different scaling, angle (Perspective), spacial position or capturing devices.")
+st.write("Upload multiple images to stitch them together. Make sure the images overlap slightly for best results.")
 
 # File uploaders
-uploaded_files = st.file_uploader("Upload images (Train Image and Query Images)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
 if uploaded_files:
     # Read images
