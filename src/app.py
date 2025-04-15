@@ -46,12 +46,16 @@ def stitch_images(train_image, query_image):
     # train_image = standardize_image(train_image)
     # query_image = standardize_image(query_image)
 
-    # Convert images to RGB
-    train_photo = cv2.cvtColor(train_image, cv2.COLOR_BGR2RGB)
-    train_photo_gray = cv2.cvtColor(train_photo, cv2.COLOR_RGB2GRAY)
+    # Keep images in BGR format for OpenCV operations
+    train_photo = train_image.copy()
+    query_photo = query_image.copy()
 
-    query_photo = cv2.cvtColor(query_image, cv2.COLOR_BGR2RGB)
-    query_photo_gray = cv2.cvtColor(query_photo, cv2.COLOR_RGB2GRAY)
+    # Convert images to RGB
+    train_photo_rgb = cv2.cvtColor(train_photo, cv2.COLOR_BGR2RGB)
+    train_photo_gray = cv2.cvtColor(train_photo_rgb, cv2.COLOR_RGB2GRAY)
+
+    query_photo_rgb = cv2.cvtColor(query_photo, cv2.COLOR_BGR2RGB)
+    query_photo_gray = cv2.cvtColor(query_photo_rgb, cv2.COLOR_RGB2GRAY)
 
     # Feature extraction
     def select_descriptor_methods(image, method='sift'):
@@ -107,9 +111,32 @@ def stitch_images(train_image, query_image):
     # Warping and stitching
     width = query_photo.shape[1] + train_photo.shape[1]
     height = max(query_photo.shape[0], train_photo.shape[0])
-    result = cv2.warpPerspective(train_image, Homography_Matrix, (width, height))
-    result[0:query_image.shape[0], 0:query_image.shape[1]] = query_image
-
+        
+    # Warp the train image
+    result = cv2.warpPerspective(train_photo, Homography_Matrix, (width, height))
+    
+    # Add the query image
+    result[0:query_photo.shape[0], 0:query_photo.shape[1]] = query_photo
+    
+    # Remove black borders
+    # Create a 10 pixel border
+    result = cv2.copyMakeBorder(result, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+    
+    # Convert to grayscale for thresholding while keeping BGR for output
+    gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)[1]
+    
+    # Find contours and get the largest one
+    contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if contours:
+        largest_contour = max(contours, key=cv2.contourArea)
+        
+        # Get bounding box of the largest contour
+        x, y, w, h = cv2.boundingRect(largest_contour)
+        
+        # Crop the result using the bounding box
+        result = result[y:y+h, x:x+w]
+            
     return result
 
 # Streamlit app
