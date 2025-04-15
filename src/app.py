@@ -144,17 +144,28 @@ if uploaded_files:
             if stitched_image is None:
                 st.error("Error stitching images. Please ensure the images overlap sufficiently and have enough unique features.")
             else:
-                # Display the result
-                st.image(stitched_image, caption="Stitched Image", use_container_width=True)
+                # Convert to RGB for Streamlit display
+                stitched_image_rgb = cv2.cvtColor(stitched_image, cv2.COLOR_BGR2RGB)
                 
-                # Save and provide download
+                # Display the result
+                st.image(stitched_image_rgb, caption="Stitched Image", use_container_width=True)
+                
+                # Save and provide download with proper color handling
                 result_path = "stitched_image.jpg"
+                
+                # Save in BGR format that OpenCV uses
                 cv2.imwrite(result_path, cv2.cvtColor(stitched_image, cv2.COLOR_RGB2BGR))
                 
-                with open(result_path, "rb") as file:
+                # For download, we need to convert back to RGB
+                with Image.open(result_path) as img:
+                    img_rgb = img.convert('RGB')
+                    img_byte_arr = io.BytesIO()
+                    img_rgb.save(img_byte_arr, format='JPEG')
+                    img_byte_arr = img_byte_arr.getvalue()
+                    
                     st.download_button(
                         label="Download Stitched Image",
-                        data=file,
+                        data=img_byte_arr,
                         file_name="stitched_image.jpg",
                         mime="image/jpeg"
                     )
