@@ -42,7 +42,7 @@ def standardize_image(image: np.ndarray, target_width: int = TARGET_WIDTH, targe
 # Image stitching function
 def stitch_images(images, crop=True):
     """
-    Stitch multiple images together using OpenCV's built-in stitching functionality
+    Stitch multiple images together using OpenCV
     
     Args:
         images: List of images to stitch
